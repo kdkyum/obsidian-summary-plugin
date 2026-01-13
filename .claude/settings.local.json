@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npm install)",
+      "Bash(npx tsc:*)",
+      "Bash(node esbuild.config.mjs:*)",
+      "Bash(npm run lint)"
+    ]
+  }
+}

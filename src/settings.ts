@@ -1,18 +1,22 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
-import MyPlugin from "./main";
+import SummaryPlugin from "./main";
 
-export interface MyPluginSettings {
-	mySetting: string;
+export interface SummaryPluginSettings {
+	claudePath: string;
+	customPrompt: string;
+	summaryHeading: string;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
+export const DEFAULT_SETTINGS: SummaryPluginSettings = {
+	claudePath: 'claude',
+	customPrompt: '',
+	summaryHeading: '## Summary'
+};
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class SummarySettingTab extends PluginSettingTab {
+	plugin: SummaryPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: SummaryPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -23,13 +27,35 @@ export class SampleSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Settings #1')
-			.setDesc('It\'s a secret')
+			.setName('Claude CLI path')
+			.setDesc('The path to the claude command.')
 			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+				.setPlaceholder('Enter path')
+				.setValue(this.plugin.settings.claudePath)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+					this.plugin.settings.claudePath = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Custom prompt')
+			.setDesc('Custom prompt for summarization (leave empty for default)')
+			.addTextArea(text => text
+				.setPlaceholder('Summarize this academic paper in a short paragraph...')
+				.setValue(this.plugin.settings.customPrompt)
+				.onChange(async (value) => {
+					this.plugin.settings.customPrompt = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Summary heading')
+			.setDesc('Markdown heading for the summary section.')
+			.addText(text => text
+				.setPlaceholder('Enter heading')
+				.setValue(this.plugin.settings.summaryHeading)
+				.onChange(async (value) => {
+					this.plugin.settings.summaryHeading = value;
 					await this.plugin.saveSettings();
 				}));
 	}
