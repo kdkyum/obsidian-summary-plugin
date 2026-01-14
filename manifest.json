@@ -1,9 +1,9 @@
 {
-	"id": "obsidian-summary-plugin",
-	"name": "Summary Plugin",
+	"id": "claude-assistant",
+	"name": "Claude Assistant",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Summarize documents using Claude CLI based on linked PDF/HTML files.",
+	"description": "Summarize documents, format Markdown, and translate using Claude CLI.",
 	"author": "kdkyum",
 	"authorUrl": "",
 	"fundingUrl": "",

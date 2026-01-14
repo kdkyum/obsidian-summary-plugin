@@ -1,16 +1,18 @@
-import {App, PluginSettingTab, Setting} from "obsidian";
+import { App, PluginSettingTab, Setting } from "obsidian";
 import SummaryPlugin from "./main";
 
 export interface SummaryPluginSettings {
 	claudePath: string;
+	model: string;
 	customPrompt: string;
 	summaryHeading: string;
 }
 
 export const DEFAULT_SETTINGS: SummaryPluginSettings = {
 	claudePath: 'claude',
+	model: 'sonnet',
 	customPrompt: '',
-	summaryHeading: '## Summary'
+	summaryHeading: '# Summary'
 };
 
 export class SummarySettingTab extends PluginSettingTab {
@@ -22,7 +24,7 @@ export class SummarySettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const {containerEl} = this;
+		const { containerEl } = this;
 
 		containerEl.empty();
 
@@ -34,6 +36,17 @@ export class SummarySettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.claudePath)
 				.onChange(async (value) => {
 					this.plugin.settings.claudePath = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Claude model')
+			.setDesc('The model to use.')
+			.addText(text => text
+				.setPlaceholder('Enter model')
+				.setValue(this.plugin.settings.model)
+				.onChange(async (value) => {
+					this.plugin.settings.model = value;
 					await this.plugin.saveSettings();
 				}));
 

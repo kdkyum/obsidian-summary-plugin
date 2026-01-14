@@ -1,6 +1,8 @@
-import {MarkdownView, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, SummaryPluginSettings, SummarySettingTab} from "./settings";
-import {summarizeDocument} from "./summarizer";
+import { MarkdownView, Notice, Plugin } from 'obsidian';
+import { DEFAULT_SETTINGS, SummaryPluginSettings, SummarySettingTab } from "./settings";
+import { summarizeDocument } from "./summarizer";
+import { formatToOFM } from "./ofm-formatter";
+import { translateContent } from "./translator";
 
 export default class SummaryPlugin extends Plugin {
 	settings: SummaryPluginSettings;
@@ -29,6 +31,38 @@ export default class SummaryPlugin extends Plugin {
 			}
 		});
 
+		// Add command to format as Obsidian Flavored Markdown
+		this.addCommand({
+			id: 'format-ofm',
+			name: 'Format Markdown',
+			checkCallback: (checking: boolean) => {
+				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (markdownView?.file) {
+					if (!checking) {
+						void this.runFormatOFM();
+					}
+					return true;
+				}
+				return false;
+			}
+		});
+
+		// Add command to translate document
+		this.addCommand({
+			id: 'translate-document',
+			name: 'Translate document',
+			checkCallback: (checking: boolean) => {
+				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (markdownView?.file) {
+					if (!checking) {
+						void this.runTranslate();
+					}
+					return true;
+				}
+				return false;
+			}
+		});
+
 		// Add settings tab
 		this.addSettingTab(new SummarySettingTab(this.app, this));
 	}
@@ -45,13 +79,8 @@ export default class SummaryPlugin extends Plugin {
 		try {
 			new Notice('Summarizing document...');
 
-			// Read current content
 			const content = await this.app.vault.read(file);
-
-			// Run summarization
 			const result = await summarizeDocument(content, this.settings);
-
-			// Write back to file
 			await this.app.vault.modify(file, result.newContent);
 
 			new Notice('Summary added successfully');
@@ -59,6 +88,54 @@ export default class SummaryPlugin extends Plugin {
 			const message = error instanceof Error ? error.message : 'Unknown error';
 			new Notice(`Summarization failed: ${message}`);
 			console.error('Summary plugin error:', error);
+		}
+	}
+
+	async runFormatOFM(): Promise<void> {
+		const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!markdownView?.file) {
+			new Notice('No active Markdown file');
+			return;
+		}
+
+		const file = markdownView.file;
+
+		try {
+			new Notice('Formatting Markdown...');
+
+			const content = await this.app.vault.read(file);
+			const formatted = await formatToOFM(content, this.settings);
+			await this.app.vault.modify(file, formatted);
+
+			new Notice('Formatted successfully');
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Unknown error';
+			new Notice(`Formatting failed: ${message}`);
+			console.error('OFM formatter error:', error);
+		}
+	}
+
+	async runTranslate(): Promise<void> {
+		const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!markdownView?.file) {
+			new Notice('No active Markdown file');
+			return;
+		}
+
+		const file = markdownView.file;
+
+		try {
+			new Notice('Translating document...');
+
+			const content = await this.app.vault.read(file);
+			const result = await translateContent(content, this.settings);
+			await this.app.vault.modify(file, result.newContent);
+
+			new Notice('Translation appended successfully');
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Unknown error';
+			new Notice(`Translation failed: ${message}`);
+			console.error('Translator error:', error);
 		}
 	}
 
