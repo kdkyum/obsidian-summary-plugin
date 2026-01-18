@@ -1,3 +1,5 @@
+import { existsSync } from 'fs';
+
 export interface Frontmatter {
 	title?: string;
 	authors?: string;
@@ -41,8 +43,15 @@ export function getFirstFilePath(frontmatter: Frontmatter): string | null {
 		return null;
 	}
 
-	// Split by comma and get the first path
-	const paths = frontmatter.file.split(',');
+	const filePath = frontmatter.file.trim();
+
+	// First, try the full path as-is (handles filenames with commas)
+	if (existsSync(filePath)) {
+		return filePath;
+	}
+
+	// If not found, try splitting by comma (for multiple files)
+	const paths = filePath.split(',');
 	const firstPath = paths[0]?.trim();
 
 	return firstPath || null;
