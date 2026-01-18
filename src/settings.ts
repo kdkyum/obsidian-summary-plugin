@@ -1,19 +1,40 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, DropdownComponent } from "obsidian";
 import SummaryPlugin from "./main";
 
+export type CliProvider = 'claude' | 'gemini';
+
 export interface SummaryPluginSettings {
-	claudePath: string;
+	cliProvider: CliProvider;
 	model: string;
-	customPrompt: string;
-	summaryHeading: string;
 }
 
-export const DEFAULT_SETTINGS: SummaryPluginSettings = {
-	claudePath: 'claude',
-	model: 'sonnet',
-	customPrompt: '',
-	summaryHeading: '# Summary'
+export const AVAILABLE_CLIS: Record<CliProvider, string> = {
+	'claude': 'Claude CLI',
+	'gemini': 'Gemini CLI'
 };
+
+export const CLAUDE_MODELS: Record<string, string> = {
+	'claude-sonnet-4-5': 'Claude Sonnet 4.5',
+	'claude-opus-4-5': 'Claude Opus 4.5'
+};
+
+export const GEMINI_MODELS: Record<string, string> = {
+	'gemini-3-pro-preview': 'Gemini 3 Pro Preview',
+	'gemini-3-flash-preview': 'Gemini 3 Flash Preview'
+};
+
+export const DEFAULT_SETTINGS: SummaryPluginSettings = {
+	cliProvider: 'claude',
+	model: 'claude-sonnet-4-5'
+};
+
+export function getModelsForCli(cli: CliProvider): Record<string, string> {
+	return cli === 'claude' ? CLAUDE_MODELS : GEMINI_MODELS;
+}
+
+export function getDefaultModelForCli(cli: CliProvider): string {
+	return cli === 'claude' ? 'claude-sonnet-4-5' : 'gemini-3-pro-preview';
+}
 
 export class SummarySettingTab extends PluginSettingTab {
 	plugin: SummaryPlugin;
@@ -28,48 +49,35 @@ export class SummarySettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		let modelDropdown: DropdownComponent;
+
 		new Setting(containerEl)
-			.setName('Claude CLI path')
-			.setDesc('The path to the claude command.')
-			.addText(text => text
-				.setPlaceholder('Enter path')
-				.setValue(this.plugin.settings.claudePath)
-				.onChange(async (value) => {
-					this.plugin.settings.claudePath = value;
+			.setName('CLI Provider')
+			.setDesc('Choose which AI CLI to use.')
+			.addDropdown(dropdown => dropdown
+				.addOptions(AVAILABLE_CLIS)
+				.setValue(this.plugin.settings.cliProvider)
+				.onChange(async (value: CliProvider) => {
+					this.plugin.settings.cliProvider = value;
+					this.plugin.settings.model = getDefaultModelForCli(value);
 					await this.plugin.saveSettings();
+					// Refresh model dropdown
+					this.display();
 				}));
 
 		new Setting(containerEl)
-			.setName('Claude model')
+			.setName('Model')
 			.setDesc('The model to use.')
-			.addText(text => text
-				.setPlaceholder('Enter model')
-				.setValue(this.plugin.settings.model)
-				.onChange(async (value) => {
-					this.plugin.settings.model = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Custom prompt')
-			.setDesc('Custom prompt for summarization (leave empty for default)')
-			.addTextArea(text => text
-				.setPlaceholder('Summarize this academic paper in a short paragraph...')
-				.setValue(this.plugin.settings.customPrompt)
-				.onChange(async (value) => {
-					this.plugin.settings.customPrompt = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Summary heading')
-			.setDesc('Markdown heading for the summary section.')
-			.addText(text => text
-				.setPlaceholder('Enter heading')
-				.setValue(this.plugin.settings.summaryHeading)
-				.onChange(async (value) => {
-					this.plugin.settings.summaryHeading = value;
-					await this.plugin.saveSettings();
-				}));
+			.addDropdown(dropdown => {
+				modelDropdown = dropdown;
+				const models = getModelsForCli(this.plugin.settings.cliProvider);
+				dropdown
+					.addOptions(models)
+					.setValue(this.plugin.settings.model)
+					.onChange(async (value) => {
+						this.plugin.settings.model = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 }

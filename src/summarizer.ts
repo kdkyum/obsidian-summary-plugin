@@ -1,9 +1,9 @@
-import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { parseFrontmatter, getFirstFilePath, getFileExtension } from './frontmatter';
 import { extractPdfText } from './extractors/pdf';
 import { extractHtmlText } from './extractors/html';
 import type { SummaryPluginSettings } from './settings';
+import { callLLM } from './llm-client';
 // @ts-ignore
 import DEFAULT_PROMPT from './prompts/summarizer.md';
 
@@ -51,51 +51,14 @@ export async function summarizeDocument(
 		extractedText = extractedText.slice(0, maxLength) + '\n\n[Content truncated...]';
 	}
 
-	// Call Claude CLI
-	const prompt = settings.customPrompt || DEFAULT_PROMPT;
-	const summary = await callClaude(settings.claudePath, settings.model, prompt, extractedText);
+	// Call LLM
+	const summary = await callLLM(settings.cliProvider, settings.model, DEFAULT_PROMPT, extractedText);
 
 	// Insert summary into document
-	const newContent = insertSummary(content, summary, settings.summaryHeading);
+	const SUMMARY_HEADING = '# Summary';
+	const newContent = insertSummary(content, summary, SUMMARY_HEADING);
 
 	return { summary, newContent };
-}
-
-async function callClaude(claudePath: string, model: string, systemPrompt: string, content: string): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const proc = spawn(claudePath, [
-			'--model', model,
-			'--system-prompt', systemPrompt,
-			'-p', '-'  // Read prompt from stdin
-		]);
-
-		let stdout = '';
-		let stderr = '';
-
-		proc.stdout.on('data', (data) => {
-			stdout += String(data);
-		});
-
-		proc.stderr.on('data', (data) => {
-			stderr += String(data);
-		});
-
-		proc.on('close', (code) => {
-			if (code === 0) {
-				resolve(stdout.trim());
-			} else {
-				reject(new Error(`Claude CLI exited with code ${code}: ${stderr}`));
-			}
-		});
-
-		// Write content to stdin
-		proc.stdin.write(content);
-		proc.stdin.end();
-
-		proc.on('error', (err) => {
-			reject(new Error(`Claude CLI failed: ${err.message}`));
-		});
-	});
 }
 
 function insertSummary(content: string, summary: string, heading: string): string {
@@ -110,14 +73,11 @@ function insertSummary(content: string, summary: string, heading: string): strin
 	}
 
 	// Find the end of the Abstract callout and insert after it
-	// Matches >[!abstract] or >[!abstract]+ followed by content lines starting with >
 	const abstractCalloutRegex = />\s*\[!abstract\]\+?\n(>.*\n?)*/i;
 	const abstractMatch = content.match(abstractCalloutRegex);
 	if (abstractMatch) {
 		const abstractStart = content.indexOf(abstractMatch[0]);
 		const abstractEnd = abstractStart + abstractMatch[0].length;
-
-		// Insert after the abstract callout
 		return content.slice(0, abstractEnd) + summarySection + content.slice(abstractEnd);
 	}
 
@@ -126,8 +86,6 @@ function insertSummary(content: string, summary: string, heading: string): strin
 	if (abstractHeadingMatch) {
 		const abstractStart = content.indexOf(abstractHeadingMatch[0]);
 		const afterAbstract = abstractStart + abstractHeadingMatch[0].length;
-
-		// Find where the abstract content ends (next heading or end of file)
 		const restContent = content.slice(afterAbstract);
 		const nextSectionMatch = restContent.match(/\n## /);
 
